@@ -83,13 +83,12 @@ export async function callClaude(
       );
 
   const args = [
-    "-p",
+    "-p", message,
     "--output-format", "text",
     "--model", config.agent.model,
     "--system-prompt", systemPrompt,
     "--session-id", session.sessionId,
     "--allowedTools", "WebSearch,WebFetch,Read,Write,Bash",
-    message,
   ];
 
   const result = await spawnClaude(args);
@@ -111,11 +110,10 @@ export async function callClaude(
  */
 export async function callClaudeHeadless(prompt: string): Promise<string> {
   const args = [
-    "-p",
+    "-p", prompt,
     "--output-format", "text",
     "--model", config.agent.model,
     "--allowedTools", "WebSearch,WebFetch",
-    prompt,
   ];
 
   return spawnClaude(args);
