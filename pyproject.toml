@@ -1,0 +1,121 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gisst"
+version = "0.6.0"
+description = "A self-hosted, Claude-powered autonomous research agent that lives in Telegram and syncs a Notion knowledge base. An OpenClaw-style personal agent, purpose-built for continuous research."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Sahil Mandi", email = "sahiltgs@gmail.com" }]
+keywords = [
+    "ai-agent",
+    "claude",
+    "anthropic",
+    "telegram-bot",
+    "notion",
+    "research-agent",
+    "autonomous-agent",
+    "openclaw",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Framework :: AsyncIO",
+    "Topic :: Communications :: Chat",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "aiogram>=3.13",
+    "anthropic>=0.40",
+    "apscheduler>=3.10,<4.0",
+    "notion-client>=2.2",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "sqlalchemy>=2.0",
+    "aiosqlite>=0.20",
+    "alembic>=1.13",
+    "structlog>=24.1",
+    "httpx>=0.27",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.30",
+    "jinja2>=3.1",
+    "python-dotenv>=1.0",
+    "tenacity>=8.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "types-python-dateutil",
+]
+
+[project.scripts]
+gisst = "gisst.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/sahil-tgs/gisst"
+Repository = "https://github.com/sahil-tgs/gisst"
+Issues = "https://github.com/sahil-tgs/gisst/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gisst"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific
+]
+ignore = [
+    "B008",  # function call in default arg (FastAPI Depends pattern)
+    "RUF012",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+"migrations/*" = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gisst"]
+
+[tool.mypy]
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+ignore_missing_imports = true
+mypy_path = "src"
+packages = ["gisst"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+source = ["src/gisst"]
+branch = true
