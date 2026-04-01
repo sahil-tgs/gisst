@@ -110,7 +110,7 @@ export async function callClaude(
     "--output-format", "json",
     "--model", config.agent.model,
     "--system-prompt", systemPrompt,
-    "--allowedTools", "WebSearch", "WebFetch", "Read", "Write", "Edit", "Bash",
+    "--dangerously-skip-permissions",
   ];
 
   // Resume existing session or let Claude create a new one
@@ -150,7 +150,7 @@ export async function callClaudeHeadless(prompt: string): Promise<string> {
     "-p", prompt,
     "--output-format", "text",
     "--model", config.agent.model,
-    "--allowedTools", "WebSearch", "WebFetch",
+    "--dangerously-skip-permissions",
   ];
 
   return spawnClaude(cmd);
