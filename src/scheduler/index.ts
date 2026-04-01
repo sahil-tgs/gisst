@@ -3,6 +3,7 @@ import { stageFinding, loadStagedFindings, clearStaging } from "./staging.ts";
 import { callClaudeHeadless } from "../agent/claude.ts";
 import { buildWatchoutCrawlPrompt, buildWatchoutDigestPrompt } from "../agent/prompt.ts";
 import { loadAgentConfig, type AgentConfig } from "../agent/agent-config.ts";
+import { syncCrawlToNotion, syncDigestToNotion } from "../notion/sync.ts";
 
 // Callback to send a message to a Telegram chat
 type SendMessageFn = (chatId: string, text: string) => Promise<void>;
@@ -78,6 +79,11 @@ async function runCrawl(job: ScheduleJobWithMeta): Promise<void> {
     const result = await callClaudeHeadless(prompt);
     await stageFinding(job.id, result);
     await updateJobTimestamp(job.id, "lastCrawl");
+
+    // Save crawl to Notion
+    syncCrawlToNotion(job.topic, result, job.id)
+      .catch((err) => console.error(`[scheduler] Notion crawl sync failed:`, err));
+
     console.log(`[scheduler] Crawl complete: "${job.topic}"`);
   } catch (err) {
     console.error(`[scheduler] Crawl failed for "${job.topic}":`, err);
@@ -105,6 +111,10 @@ async function runDigest(job: ScheduleJobWithMeta): Promise<void> {
       await sendMessage(job.chatId, digest);
       console.log(`[scheduler] Digest sent to chat ${job.chatId}: "${job.topic}"`);
     }
+
+    // Save digest to Notion
+    syncDigestToNotion(job.topic, digest, findings.length, job.id)
+      .catch((err) => console.error(`[scheduler] Notion digest sync failed:`, err));
 
     await clearStaging(job.id);
     await updateJobTimestamp(job.id, "lastDigest");
