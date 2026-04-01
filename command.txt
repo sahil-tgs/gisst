@@ -1,0 +1,1 @@
+gcloud compute ssh scraper-vm --zone=us-east1-b

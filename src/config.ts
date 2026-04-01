@@ -1,6 +1,11 @@
-import { join } from "path";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+import { mkdirSync } from "fs";
 
-const SRC_DIR = import.meta.dir;
+// Works in both Bun and Node
+const SRC_DIR = typeof import.meta.dir === "string"
+  ? import.meta.dir
+  : dirname(fileURLToPath(import.meta.url));
 
 export const config = {
   agent: {
@@ -11,10 +16,8 @@ export const config = {
     sessionDir: join(SRC_DIR, "data", "sessions"),
     stagingDir: join(SRC_DIR, "data", "staging"),
   },
-  whatsapp: {
-    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || "",
-    accessToken: process.env.WHATSAPP_ACCESS_TOKEN || "",
-    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || "",
+  telegram: {
+    botToken: process.env.TELEGRAM_BOT_TOKEN || "",
   },
   notion: {
     apiKey: process.env.NOTION_API_KEY || "",
@@ -36,6 +39,6 @@ export function ensureDataDirs() {
     config.agent.stagingDir,
   ];
   for (const dir of dirs) {
-    Bun.spawnSync(["mkdir", "-p", dir]);
+    mkdirSync(dir, { recursive: true });
   }
 }

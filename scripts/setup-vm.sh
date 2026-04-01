@@ -19,7 +19,7 @@ if command -v claude &> /dev/null; then
   echo "[✓] Claude Code already installed: $(claude --version 2>/dev/null || echo 'installed')"
 else
   echo "[*] Installing Claude Code..."
-  curl -fsSL https://claude.ai/install.sh | sh
+  npm install -g @anthropic-ai/claude-code
   echo "[✓] Claude Code installed"
   echo ""
   echo "!!! IMPORTANT: You need to run 'claude login' manually in tmux to authenticate."
