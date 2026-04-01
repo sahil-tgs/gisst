@@ -44,7 +44,16 @@ export async function startTelegram() {
 
   bot = new Bot(token);
 
-  // !register command — activate bot in this group
+  // /start command
+  bot.command("start", async (ctx) => {
+    await ctx.reply(
+      "👋 I'm Scout, your Gisst research agent.\n\n" +
+      "Ask me anything — I'll search the web and give you cited answers.\n\n" +
+      "In groups: add me, then send /register to activate."
+    );
+  });
+
+  // /register command — activate bot in this group
   bot.command("register", async (ctx) => {
     if (ctx.chat.type === "private") {
       await ctx.reply("This command is for groups. Just DM me directly!");
@@ -81,8 +90,8 @@ export async function startTelegram() {
       return;
     }
 
-    // Skip /register since it's handled above
-    if (text.startsWith("/register")) return;
+    // Skip commands handled elsewhere
+    if (text.startsWith("/register") || text.startsWith("/start")) return;
 
     console.log(`[telegram] ${pushName} (${sender}): ${text.slice(0, 100)}`);
 
@@ -97,15 +106,21 @@ export async function startTelegram() {
     await enqueue(sender, text, pushName, async (response) => {
       clearInterval(typingInterval);
 
-      // Split long messages (Telegram limit is 4096)
       const chunks = splitMessage(response, 4000);
       for (const chunk of chunks) {
-        await ctx.reply(chunk, {
-          reply_to_message_id: ctx.message.message_id,
-          parse_mode: undefined, // plain text — WhatsApp formatting won't work in Telegram MD
-        });
+        try {
+          await ctx.reply(chunk, {
+            reply_to_message_id: ctx.message.message_id,
+            parse_mode: "Markdown",
+          });
+        } catch {
+          // Fallback to plain text if Markdown parsing fails
+          await ctx.reply(chunk, {
+            reply_to_message_id: ctx.message.message_id,
+          });
+        }
       }
-    });
+    }, bot!.botInfo.username);
   });
 
   // Error handler

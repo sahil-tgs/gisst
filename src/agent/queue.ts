@@ -4,6 +4,7 @@ interface QueuedMessage {
   userId: string;
   text: string;
   userName: string;
+  botUsername?: string;
   onResponse: (response: string) => Promise<void>;
 }
 
@@ -20,9 +21,10 @@ export async function enqueue(
   userId: string,
   text: string,
   userName: string,
-  onResponse: (response: string) => Promise<void>
+  onResponse: (response: string) => Promise<void>,
+  botUsername?: string
 ): Promise<void> {
-  const msg: QueuedMessage = { userId, text, userName, onResponse };
+  const msg: QueuedMessage = { userId, text, userName, botUsername, onResponse };
 
   if (!queues.has(userId)) {
     queues.set(userId, []);
@@ -53,6 +55,7 @@ async function processQueue(userId: string) {
       const result = await callClaude(msg.userId, msg.text, {
         userName: msg.userName,
         userPhone: msg.userId,
+        botUsername: msg.botUsername,
       });
 
       // TODO: handle result.notionSync when Notion integration is built
