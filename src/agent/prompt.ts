@@ -171,14 +171,16 @@ export function buildSystemPrompt(agentConfig: AgentConfig, context?: {
   userPhone?: string;
   currentDate?: string;
   isDigestMode?: boolean;
+  botUsername?: string;
 }): string {
   const parts = [BASE_PROMPT, "", buildUserLayer(agentConfig)];
 
   if (context) {
     parts.push("", "## Current Context");
     if (context.userName) parts.push(`- User: ${context.userName}`);
-    if (context.userPhone) parts.push(`- Phone: ${context.userPhone}`);
+    if (context.userPhone) parts.push(`- User ID: ${context.userPhone}`);
     parts.push(`- Date: ${context.currentDate || new Date().toISOString().split("T")[0]}`);
+    if (context.botUsername) parts.push(`- Your Telegram username is @${context.botUsername}. When users tag @${context.botUsername}, they are talking to YOU. You ARE @${context.botUsername}.`);
     if (context.isDigestMode) parts.push(`- Mode: WATCHOUT DIGEST — this is a scheduled research run, not a user message.`);
   }
 
