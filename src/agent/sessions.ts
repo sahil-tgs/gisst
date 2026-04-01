@@ -1,5 +1,6 @@
 import { join } from "path";
 import { config } from "../config.ts";
+import { readJsonFile, writeJsonFile } from "../utils/fs.ts";
 
 export interface SessionData {
   sessionId: string;
@@ -14,13 +15,7 @@ function sessionsFile(): string {
 }
 
 export async function getAllSessions(): Promise<Record<string, SessionData>> {
-  try {
-    const file = Bun.file(sessionsFile());
-    if (await file.exists()) {
-      return await file.json();
-    }
-  } catch {}
-  return {};
+  return (await readJsonFile<Record<string, SessionData>>(sessionsFile())) || {};
 }
 
 export async function getSession(userId: string): Promise<SessionData | null> {
@@ -38,7 +33,7 @@ export async function createSession(userId: string, agentId: string): Promise<Se
     messageCount: 0,
   };
   sessions[userId] = session;
-  await Bun.write(sessionsFile(), JSON.stringify(sessions, null, 2));
+  await writeJsonFile(sessionsFile(), sessions);
   return session;
 }
 
@@ -46,7 +41,7 @@ export async function updateSession(userId: string, updates: Partial<SessionData
   const sessions = await getAllSessions();
   if (sessions[userId]) {
     sessions[userId] = { ...sessions[userId], ...updates };
-    await Bun.write(sessionsFile(), JSON.stringify(sessions, null, 2));
+    await writeJsonFile(sessionsFile(), sessions);
   }
 }
 
@@ -54,6 +49,6 @@ export async function deleteSession(userId: string): Promise<string | null> {
   const sessions = await getAllSessions();
   const old = sessions[userId]?.sessionId || null;
   delete sessions[userId];
-  await Bun.write(sessionsFile(), JSON.stringify(sessions, null, 2));
+  await writeJsonFile(sessionsFile(), sessions);
   return old;
 }

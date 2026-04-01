@@ -1,5 +1,6 @@
 import { join } from "path";
 import { config } from "../config.ts";
+import { readJsonFile, writeJsonFile } from "../utils/fs.ts";
 
 export interface AgentIdentity {
   name: string;
@@ -87,13 +88,7 @@ function agentConfigFile(agentId: string): string {
 }
 
 export async function loadAgentConfig(agentId: string): Promise<AgentConfig | null> {
-  try {
-    const file = Bun.file(agentConfigFile(agentId));
-    if (await file.exists()) {
-      return await file.json();
-    }
-  } catch {}
-  return null;
+  return readJsonFile<AgentConfig>(agentConfigFile(agentId));
 }
 
 export async function createAgentConfig(overrides?: Partial<AgentConfig>): Promise<AgentConfig> {
@@ -109,7 +104,7 @@ export async function createAgentConfig(overrides?: Partial<AgentConfig>): Promi
     interaction: { ...DEFAULTS.interaction, ...overrides?.interaction },
     schedule: { ...DEFAULTS.schedule, ...overrides?.schedule },
   };
-  await Bun.write(agentConfigFile(agentConfig.id), JSON.stringify(agentConfig, null, 2));
+  await writeJsonFile(agentConfigFile(agentConfig.id), agentConfig);
   return agentConfig;
 }
 
@@ -129,7 +124,7 @@ export async function updateAgentConfig(
     interaction: { ...existing.interaction, ...updates.interaction },
     schedule: { ...existing.schedule, ...updates.schedule },
   };
-  await Bun.write(agentConfigFile(agentId), JSON.stringify(updated, null, 2));
+  await writeJsonFile(agentConfigFile(agentId), updated);
   return updated;
 }
 
