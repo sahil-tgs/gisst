@@ -1,23 +1,23 @@
-# Current Sprint
+# Current State
 
-## Status: Agent Core Built — Awaiting VM Testing
+## Status: Prototype Live on VM (2026-04-01)
 
 ### Completed
-- [x] Project skeleton with clean separation (code in src/, context in knowledge/)
-- [x] Agent config system (identity, research, interaction, schedule settings)
-- [x] Session management (userId → sessionId persistence)
-- [x] Two-layer prompt system (base DNA + user config layer)
-- [x] Claude CLI spawner with Notion marker parsing
-- [x] CLI test harness (scripts/test-agent.ts)
-- [x] VM setup script (scripts/setup-vm.sh)
+- [x] Agent core — Claude CLI spawner, session management, two-layer prompt system
+- [x] Telegram integration — grammy bot, group management, @mention/command triggers
+- [x] Watchout Protocol — scheduler, crawl/digest pipeline, Telegram commands
+- [x] Notion integration — auto-setup databases, sync research/crawl/digest
+- [x] VM deployment — running on scraper-vm in tmux
 
-### In Progress
-- [ ] Push to VM, run setup, authenticate Claude Code
-- [ ] Test agent via CLI harness — validate research quality and prompt behavior
+### Live on VM
+- Bot: @rankly_agent_bot (tmux session: gisst)
+- Notion: Connected to "Knowledge Base" page with Research Findings + Daily Digests databases
+- Scheduler: Running, checks every 60s for due crawls/digests
 
 ### Up Next
-- [ ] Iterate on prompt based on test results
-- [ ] WhatsApp Cloud API integration (webhook + sender)
-- [ ] Notion integration (client, sync, schema)
-- [ ] Watchout Protocol scheduler
-- [ ] Context management (user profiles, metadata)
+- [ ] Agent configuration via Telegram (!configure commands)
+- [ ] Notion knowledge base reading (!kb command)
+- [ ] Improve digest quality — have Claude reference past Notion entries
+- [ ] WhatsApp integration (when Facebook appeal resolves or via spare number + Evolution API)
+- [ ] User profiles and conversation metadata
+- [ ] Multiple agent support (different configs per group)
