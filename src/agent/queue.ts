@@ -1,4 +1,5 @@
 import { callClaude } from "./claude.ts";
+import { syncResearchToNotion } from "../notion/sync.ts";
 
 interface QueuedMessage {
   userId: string;
@@ -58,7 +59,13 @@ async function processQueue(userId: string) {
         botUsername: msg.botUsername,
       });
 
-      // TODO: handle result.notionSync when Notion integration is built
+      // Sync to Notion if agent produced a SAVE_TO_NOTION marker
+      if (result.notionSync) {
+        syncResearchToNotion(result.notionSync, {
+          userName: msg.userName,
+          type: "Research",
+        }).catch((err) => console.error("[queue] Notion sync failed:", err));
+      }
 
       await msg.onResponse(result.text);
     } catch (err) {

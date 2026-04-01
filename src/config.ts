@@ -21,6 +21,7 @@ export const config = {
   },
   notion: {
     apiKey: process.env.NOTION_API_KEY || "",
+    pageId: process.env.NOTION_PAGE_ID || "",
     researchDbId: process.env.NOTION_RESEARCH_DB_ID || "",
     digestDbId: process.env.NOTION_DIGEST_DB_ID || "",
   },
