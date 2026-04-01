@@ -1,16 +1,13 @@
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
-  makeInMemoryStore,
   type WASocket,
-  type BaileysEventMap,
 } from "@whiskeysockets/baileys";
 import { join } from "path";
 import { config } from "../config.ts";
 import { enqueue } from "../agent/queue.ts";
 
 const AUTH_DIR = join(config.agent.sessionDir, "whatsapp-auth");
-const STORE_FILE = join(config.agent.sessionDir, "whatsapp-store.json");
 const ALLOWED_GROUPS_FILE = join(config.agent.configDir, "allowed-groups.json");
 
 let sock: WASocket | null = null;
@@ -67,26 +64,10 @@ export async function startWhatsApp() {
   // Auth state persists between restarts
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
-  // In-memory store for message history (optional, helps with message context)
-  const store = makeInMemoryStore({});
-  try {
-    const storeFile = Bun.file(STORE_FILE);
-    if (await storeFile.exists()) {
-      store.readFromFile(STORE_FILE);
-    }
-  } catch {}
-
-  // Save store periodically
-  setInterval(() => {
-    store.writeToFile(STORE_FILE);
-  }, 30_000);
-
   sock = makeWASocket({
     auth: state,
     printQRInTerminal: true,
   });
-
-  store.bind(sock.ev);
 
   // Handle connection updates
   sock.ev.on("connection.update", (update) => {
