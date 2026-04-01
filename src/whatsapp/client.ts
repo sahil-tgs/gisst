@@ -11,8 +11,52 @@ import { enqueue } from "../agent/queue.ts";
 
 const AUTH_DIR = join(config.agent.sessionDir, "whatsapp-auth");
 const STORE_FILE = join(config.agent.sessionDir, "whatsapp-store.json");
+const ALLOWED_GROUPS_FILE = join(config.agent.configDir, "allowed-groups.json");
 
 let sock: WASocket | null = null;
+
+/**
+ * Load allowed group JIDs. If empty, bot responds nowhere (safe default).
+ * Add groups via !register command or manually in allowed-groups.json.
+ */
+async function getAllowedGroups(): Promise<Set<string>> {
+  try {
+    const file = Bun.file(ALLOWED_GROUPS_FILE);
+    if (await file.exists()) {
+      const data: string[] = await file.json();
+      return new Set(data);
+    }
+  } catch {}
+  return new Set();
+}
+
+async function addAllowedGroup(jid: string): Promise<void> {
+  const groups = await getAllowedGroups();
+  groups.add(jid);
+  await Bun.write(ALLOWED_GROUPS_FILE, JSON.stringify([...groups], null, 2));
+  console.log(`[whatsapp] Group registered: ${jid}`);
+}
+
+/**
+ * Check if the bot should respond to a message.
+ */
+async function shouldRespond(jid: string, text: string, isGroup: boolean): Promise<boolean> {
+  // DMs: always respond
+  if (!isGroup) return true;
+
+  // Groups: only respond if group is registered
+  const allowed = await getAllowedGroups();
+  if (!allowed.has(jid)) return false;
+
+  // In allowed groups, respond to !commands or when bot name is mentioned
+  const triggerPatterns = [
+    /^!/,                    // !commands
+    /\bscout\b/i,           // default agent name mention
+    /\bgisst\b/i,           // product name mention
+  ];
+
+  return triggerPatterns.some((p) => p.test(text));
+}
 
 /**
  * Start the WhatsApp client via Baileys.
@@ -87,23 +131,34 @@ export async function startWhatsApp() {
         msg.message?.extendedTextMessage?.text;
       if (!text) continue;
 
-      const from = msg.key.remoteJid!;
-      const sender = msg.key.participant || from; // participant for group chats
+      const chatJid = msg.key.remoteJid!;
+      const isGroup = chatJid.endsWith("@g.us");
+      const sender = msg.key.participant || chatJid;
       const pushName = msg.pushName || sender;
       const messageId = msg.key.id!;
+
+      // Handle !register command — adds this group to allowed list
+      if (text.trim() === "!register" && isGroup) {
+        await addAllowedGroup(chatJid);
+        await sendText(chatJid, "✅ Gisst activated in this group!\n\nI'll respond to:\n• Messages starting with !\n• Messages mentioning *Scout* or *Gisst*\n\nTry: *!help* to see what I can do.");
+        continue;
+      }
+
+      // Check if bot should respond
+      if (!(await shouldRespond(chatJid, text, isGroup))) continue;
 
       console.log(`[whatsapp] ${pushName} (${sender}): ${text.slice(0, 100)}`);
 
       // React with 🔍
-      await reactToMessage(from, messageId, "🔍");
+      await reactToMessage(chatJid, messageId, "🔍");
 
       // Enqueue for agent processing
       await enqueue(sender, text, pushName, async (response) => {
         // React with ✅
-        await reactToMessage(from, messageId, "✅");
+        await reactToMessage(chatJid, messageId, "✅");
 
-        // Send response to the chat (works for both DMs and groups)
-        await sendText(from, response);
+        // Send response to the chat
+        await sendText(chatJid, response);
       });
     }
   });
