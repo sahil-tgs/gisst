@@ -16,6 +16,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@notionhq/client": "^2.2.0"
+    "@notionhq/client": "^2.2.0",
+    "@whiskeysockets/baileys": "^7.0.0"
   }
 }
