@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@notionhq/client": "^2.2.0",
-    "@whiskeysockets/baileys": "7.0.0-rc.9"
+    "@whiskeysockets/baileys": "7.0.0-rc.9",
+    "qrcode-terminal": "^0.12.0"
   }
 }

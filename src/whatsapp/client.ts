@@ -61,20 +61,30 @@ async function shouldRespond(jid: string, text: string, isGroup: boolean): Promi
  * Subsequent runs: reconnects automatically using saved auth state.
  */
 export async function startWhatsApp() {
-  // Auth state persists between restarts
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
   sock = makeWASocket({
     auth: state,
-    printQRInTerminal: true,
+    // v7: QR is handled via connection.update event, not printQRInTerminal
   });
 
   // Handle connection updates
-  sock.ev.on("connection.update", (update) => {
+  sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
+    // QR code available — print it for scanning
     if (qr) {
-      console.log("[whatsapp] Scan QR code above with your phone");
+      // Dynamic import to avoid issues if not installed
+      try {
+        const { default: qrcode } = await import("qrcode-terminal");
+        qrcode.generate(qr, { small: true });
+        console.log("\n[whatsapp] ^^^^ Scan this QR code with WhatsApp ^^^^\n");
+      } catch {
+        // Fallback: just print the raw QR string
+        console.log("\n[whatsapp] QR Code (scan with WhatsApp):");
+        console.log(qr);
+        console.log("\nInstall qrcode-terminal for a scannable QR: bun add qrcode-terminal\n");
+      }
     }
 
     if (connection === "close") {
@@ -84,9 +94,11 @@ export async function startWhatsApp() {
       console.log(`[whatsapp] Connection closed. Status: ${statusCode}. Reconnecting: ${shouldReconnect}`);
 
       if (shouldReconnect) {
+        // Delay before reconnect to prevent infinite rapid loop
+        await new Promise((r) => setTimeout(r, 3000));
         startWhatsApp();
       } else {
-        console.log("[whatsapp] Logged out. Delete auth folder and restart to re-authenticate.");
+        console.log("[whatsapp] Logged out. Delete data/sessions/whatsapp-auth and restart.");
       }
     }
 
