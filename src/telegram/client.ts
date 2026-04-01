@@ -3,6 +3,7 @@ import { config } from "../config.ts";
 import { enqueue } from "../agent/queue.ts";
 import { readJsonFile, writeJsonFile } from "../utils/fs.ts";
 import { join } from "path";
+import { addJob, loadJobs, removeJob, toggleJob, type ScheduleJobWithMeta } from "../scheduler/jobs.ts";
 
 const ALLOWED_GROUPS_FILE = join(config.agent.configDir, "allowed-groups.json");
 
@@ -71,6 +72,119 @@ export async function startTelegram() {
     );
   });
 
+  // /schedule command — create a scheduled research job
+  // Usage: /schedule "F1 News" daily 8pm
+  // Usage: /schedule "AI Policy" every 4h digest 20:00
+  bot.command("schedule", async (ctx) => {
+    const args = ctx.match?.trim();
+    if (!args) {
+      await ctx.reply(
+        "Usage: /schedule <topic> [cadence] [digest time]\n\n" +
+        "Examples:\n" +
+        '  /schedule F1 News\n' +
+        '  /schedule AI Policy every 2h digest 20:00\n' +
+        '  /schedule Climate Tech every 6h digest 09:00\n\n' +
+        "Defaults: crawl every 4h, digest at 20:00"
+      );
+      return;
+    }
+
+    // Parse: topic is everything before "every" or "digest", or the whole string
+    let topic = args;
+    let cadence = "every 4h";
+    let digestTime = "20:00";
+
+    const everyMatch = args.match(/every\s+\d+\s*[hm]/i);
+    const digestMatch = args.match(/digest\s+(\d{1,2}:\d{2})/i);
+
+    if (everyMatch) {
+      cadence = everyMatch[0];
+      topic = args.slice(0, args.indexOf(everyMatch[0])).trim();
+    }
+    if (digestMatch) {
+      digestTime = digestMatch[1];
+      if (!everyMatch) {
+        topic = args.slice(0, args.indexOf(digestMatch[0])).trim();
+      }
+    }
+    if (!topic) topic = args.split(/\s+every\s+|\s+digest\s+/i)[0].trim();
+
+    const job: ScheduleJobWithMeta = {
+      id: crypto.randomUUID(),
+      topic,
+      keywords: topic.split(/\s+/),
+      cadence,
+      digestTime,
+      digestTimezone: "UTC",
+      lookbackWindow: "24h",
+      platformPriority: [],
+      active: true,
+      chatId: String(ctx.chat.id),
+      createdBy: String(ctx.from.id),
+    };
+
+    await addJob(job);
+    await ctx.reply(
+      `✅ Scheduled: "${topic}"\n\n` +
+      `• Crawl: ${cadence}\n` +
+      `• Digest: daily at ${digestTime} UTC\n` +
+      `• ID: ${job.id.slice(0, 8)}\n\n` +
+      `I'll research this topic throughout the day and send you a summary at ${digestTime}.`
+    );
+  });
+
+  // /schedules command — list all scheduled jobs
+  bot.command("schedules", async (ctx) => {
+    const jobs = await loadJobs();
+    const chatJobs = jobs.filter((j) => j.chatId === String(ctx.chat.id));
+
+    if (chatJobs.length === 0) {
+      await ctx.reply("No scheduled jobs for this chat. Create one with /schedule");
+      return;
+    }
+
+    const lines = chatJobs.map((j, i) => {
+      const status = j.active ? "🟢" : "⏸️";
+      return `${status} ${i + 1}. "${j.topic}" — ${j.cadence}, digest at ${j.digestTime}\n   ID: ${j.id.slice(0, 8)}`;
+    });
+
+    await ctx.reply(`Scheduled jobs:\n\n${lines.join("\n\n")}\n\nCommands: /pause <id> · /remove <id>`);
+  });
+
+  // /pause command — toggle a job active/paused
+  bot.command("pause", async (ctx) => {
+    const idPrefix = ctx.match?.trim();
+    if (!idPrefix) {
+      await ctx.reply("Usage: /pause <job-id>");
+      return;
+    }
+    const jobs = await loadJobs();
+    const job = jobs.find((j) => j.id.startsWith(idPrefix));
+    if (!job) {
+      await ctx.reply(`No job found with ID starting with "${idPrefix}"`);
+      return;
+    }
+    const updated = await toggleJob(job.id);
+    await ctx.reply(`${updated?.active ? "▶️ Resumed" : "⏸️ Paused"}: "${job.topic}"`);
+  });
+
+  // /remove command — delete a scheduled job
+  bot.command("remove", async (ctx) => {
+    const idPrefix = ctx.match?.trim();
+    if (!idPrefix) {
+      await ctx.reply("Usage: /remove <job-id>");
+      return;
+    }
+    const jobs = await loadJobs();
+    const job = jobs.find((j) => j.id.startsWith(idPrefix));
+    if (!job) {
+      await ctx.reply(`No job found with ID starting with "${idPrefix}"`);
+      return;
+    }
+    await removeJob(job.id);
+    await ctx.reply(`🗑️ Removed: "${job.topic}"`);
+  });
+
   // Handle all text messages
   bot.on("message:text", async (ctx) => {
     const text = ctx.message.text;
@@ -91,7 +205,7 @@ export async function startTelegram() {
     }
 
     // Skip commands handled elsewhere
-    if (text.startsWith("/register") || text.startsWith("/start")) return;
+    if (text.startsWith("/")) return;
 
     console.log(`[telegram] ${pushName} (${sender}): ${text.slice(0, 100)}`);
 
@@ -128,13 +242,16 @@ export async function startTelegram() {
     console.error("[telegram] Bot error:", err);
   });
 
-  // Start polling
-  await bot.start({
+  // Start polling (don't await — it blocks forever)
+  bot.start({
     onStart: (botInfo) => {
       console.log(`[telegram] Bot started: @${botInfo.username}`);
       console.log(`[telegram] Add to a group, then send /register to activate`);
     },
   });
+
+  // Wait for bot info to be available
+  await bot.init();
 }
 
 function splitMessage(text: string, maxLength: number): string[] {
@@ -165,6 +282,21 @@ function splitMessage(text: string, maxLength: number): string[] {
   }
 
   return chunks;
+}
+
+/**
+ * Send a message to a chat by ID. Used by the scheduler for digests.
+ */
+export async function sendTextToChat(chatId: string, text: string): Promise<void> {
+  if (!bot) throw new Error("Bot not started");
+  const chunks = splitMessage(text, 4000);
+  for (const chunk of chunks) {
+    try {
+      await bot.api.sendMessage(chatId, chunk, { parse_mode: "Markdown" });
+    } catch {
+      await bot.api.sendMessage(chatId, chunk);
+    }
+  }
 }
 
 export function getBot(): Bot | null {
