@@ -23,17 +23,39 @@ export interface NotionSyncPayload {
  * Returns clean text (marker removed) and the parsed payload if found.
  */
 function parseNotionMarker(text: string): { cleanText: string; notionSync?: NotionSyncPayload } {
-  const marker = /\[SAVE_TO_NOTION:\s*(\{[\s\S]*?\})\]/;
-  const match = text.match(marker);
+  const startTag = "[SAVE_TO_NOTION:";
+  const startIdx = text.indexOf(startTag);
+  if (startIdx === -1) return { cleanText: text };
 
-  if (!match) return { cleanText: text };
+  // Find the JSON by matching balanced braces
+  const jsonStart = text.indexOf("{", startIdx);
+  if (jsonStart === -1) return { cleanText: text };
+
+  let depth = 0;
+  let jsonEnd = -1;
+  for (let i = jsonStart; i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        jsonEnd = i + 1;
+        break;
+      }
+    }
+  }
+
+  if (jsonEnd === -1) return { cleanText: text };
+
+  // Find the closing ]
+  const closingBracket = text.indexOf("]", jsonEnd);
+  const fullMarker = text.slice(startIdx, closingBracket !== -1 ? closingBracket + 1 : jsonEnd);
 
   try {
-    const payload = JSON.parse(match[1]) as NotionSyncPayload;
-    const cleanText = text.replace(marker, "").trim();
+    const payload = JSON.parse(text.slice(jsonStart, jsonEnd)) as NotionSyncPayload;
+    const cleanText = text.replace(fullMarker, "").trim();
     return { cleanText, notionSync: payload };
   } catch {
-    console.warn("[claude] Failed to parse SAVE_TO_NOTION marker:", match[1]);
+    console.warn("[claude] Failed to parse SAVE_TO_NOTION JSON");
     return { cleanText: text };
   }
 }
