@@ -1,35 +1,31 @@
 import { config, ensureDataDirs } from "./config.ts";
-import { handleVerification, handleIncoming } from "./whatsapp/webhook.ts";
+import { startWhatsApp } from "./whatsapp/client.ts";
 
 ensureDataDirs();
 
 console.log("Gisst — Starting up...");
 console.log(`Model: ${config.agent.model}`);
-console.log(`Port: ${config.server.port}`);
-console.log(`Webhook: ${config.server.webhookPath}`);
 console.log("---");
 
+// Start WhatsApp (Baileys — scan QR on first run)
+await startWhatsApp();
+
+// Health check server (for monitoring)
 Bun.serve({
   port: config.server.port,
-
-  async fetch(req) {
+  fetch(req) {
     const url = new URL(req.url);
-    const path = url.pathname;
-
-    // Health check
-    if (path === "/health") {
+    if (url.pathname === "/health") {
       return new Response("ok", { status: 200 });
     }
-
-    // WhatsApp webhook
-    if (path === config.server.webhookPath) {
-      if (req.method === "GET") return handleVerification(req);
-      if (req.method === "POST") return handleIncoming(req);
-    }
-
-    return new Response("Not found", { status: 404 });
+    return new Response("Gisst is running. WhatsApp connected via Baileys.", { status: 200 });
   },
 });
 
-console.log(`Gisst listening on http://0.0.0.0:${config.server.port}`);
-console.log(`Webhook endpoint: ${config.server.webhookPath}`);
+console.log(`Health check on http://0.0.0.0:${config.server.port}/health`);
+
+// Keep alive
+process.on("SIGINT", () => {
+  console.log("\nShutting down Gisst...");
+  process.exit(0);
+});
