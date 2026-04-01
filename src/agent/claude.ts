@@ -128,7 +128,8 @@ function spawnClaude(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     const proc = spawn("claude", args, {
       cwd: config.agent.workDir,
-      env: { ...process.env },
+      env: { ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.PATH}` },
+      stdio: ["ignore", "pipe", "pipe"],
       timeout: config.agent.timeout,
     });
 
