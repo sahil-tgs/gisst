@@ -4,8 +4,9 @@ These functions decide *when* a scheduled job should crawl or emit its digest.
 They are deliberately side-effect free so they can be unit-tested in isolation
 without a database, a clock, or an event loop.
 
-Faithful port of the timing logic from the original ``scheduler/index.ts``: the
-digest fires on the exact minute its scheduled ``HH:MM`` is reached.
+Faithful port of the timing logic from the original ``scheduler/index.ts``, with
+the digest rule corrected to fire on an *at-or-past* comparison rather than an
+exact-minute match (so a tick that lands a minute late still delivers).
 """
 
 from __future__ import annotations
@@ -104,8 +105,15 @@ def is_crawl_due(job: ScheduleJobState, now: datetime) -> bool:
 def is_digest_due(job: ScheduleJobState, now: datetime) -> bool:
     """Return ``True`` when ``job`` should emit its daily digest at ``now``.
 
-    The digest fires when ``now`` falls on the exact ``HH:MM`` the job is
-    scheduled for and a digest has not already been sent today.
+    The digest fires when **both**:
+
+    * ``now`` is at or past the scheduled ``HH:MM`` today
+      (``now.hour > h`` or ``now.hour == h and now.minute >= m``), and
+    * a digest has not already been sent today (the date portion of
+      ``last_digest`` differs from today's date).
+
+    This is an *at-or-past* test, not exact-minute equality, so a tick that
+    arrives a little late still delivers the digest.
     """
     if not job.active:
         return False
@@ -113,8 +121,8 @@ def is_digest_due(job: ScheduleJobState, now: datetime) -> bool:
     now_utc = _as_utc(now)
     hour, minute = parse_time(job.digest_time)
 
-    # Fire only on the exact minute the digest is scheduled for.
-    if now_utc.hour != hour or now_utc.minute != minute:
+    past_scheduled_time = now_utc.hour > hour or (now_utc.hour == hour and now_utc.minute >= minute)
+    if not past_scheduled_time:
         return False
 
     already_sent_today = (
