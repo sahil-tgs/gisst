@@ -1,0 +1,36 @@
+# -----------------------------------------------------------------------------
+# Gisst - single-service compose for local / VM deployment.
+# Build the image, load secrets from .env, persist runtime data in a named
+# volume, and expose the FastAPI dashboard on :8000.
+# -----------------------------------------------------------------------------
+
+services:
+  gisst:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gisst:latest
+    container_name: gisst
+    env_file:
+      - .env
+    environment:
+      # Keep the sqlite db inside the mounted volume so it survives restarts.
+      GISST_DATA_DIR: /app/data
+      DATABASE_URL: sqlite+aiosqlite:////app/data/gisst.db
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - gisst-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+volumes:
+  gisst-data:
+    driver: local

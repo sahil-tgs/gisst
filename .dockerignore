@@ -1,0 +1,59 @@
+# Version control
+.git/
+.gitignore
+
+# Python caches / build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.uv/
+
+# Environment / secrets - never bake into the image
+.env
+.env.*
+!.env.example
+
+# Runtime data (sqlite db, workspace, staging) - provided via volume at runtime
+data/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Test / coverage / type artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+tests/
+
+# Tooling / CI / local config not needed in the image
+.github/
+.pre-commit-config.yaml
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Docs / project knowledge base
+knowledge/
+*.md
+!README.md
+
+# Logs
+*.log
+logs/
